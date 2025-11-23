@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # PyQueue UI - React Dashboard
+  pyqueue-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000}
+    container_name: pyqueue-ui
+    ports:
+      - "${REACT_APP_UI_PORT:-3000}:80"
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8000}
+      - REACT_APP_API_HOST=${REACT_APP_API_HOST:-localhost}
+      - REACT_APP_API_PORT=${REACT_APP_API_PORT:-8000}
+    restart: unless-stopped
+    networks:
+      - pyqueue-ui-network
+
+networks:
+  pyqueue-ui-network:
+    driver: bridge

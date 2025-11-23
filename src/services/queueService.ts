@@ -1,5 +1,5 @@
 import axios, { type AxiosRequestConfig } from 'axios';
-import type { ConsumerGroup, Message, Queue, Topic } from '../types';
+import type { Message, Queue, QueueCollection } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -40,7 +40,7 @@ const ensureArray = <T>(payload: unknown): T[] => {
     }
 
     if (payload && typeof payload === 'object') {
-        const candidates = ['items', 'data', 'records', 'results', 'queues', 'topics', 'messages'];
+        const candidates = ['items', 'data', 'records', 'results', 'queues', 'messages'];
 
         for (const key of candidates) {
             const value = (payload as Record<string, unknown>)[key];
@@ -58,13 +58,131 @@ const ensureArray = <T>(payload: unknown): T[] => {
     return [];
 };
 
-export const getQueues = async (): Promise<Queue[]> => {
-    const payload = await request<unknown>({ method: 'GET', url: '/queues' });
-    return ensureArray<Queue>(payload);
+type RawQueue = {
+    queue_name?: unknown;
+    queueName?: unknown;
+    name?: unknown;
+    id?: unknown;
+    message_count?: unknown;
+    messageCount?: unknown;
+    available_messages?: unknown;
+    availableMessages?: unknown;
+    in_flight_messages?: unknown;
+    inFlightMessages?: unknown;
+    permissions?: unknown;
 };
 
-export const getQueueDetails = async (queueId: string): Promise<Queue> =>
-    request<Queue>({ method: 'GET', url: `/queues/${queueId}` });
+type RawQueuesEnvelope = {
+    queues?: RawQueue[];
+    count?: unknown;
+    api_key_description?: unknown;
+    apiKeyDescription?: unknown;
+};
+
+const toNumber = (value: unknown, fallback = 0): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : fallback;
+    }
+
+    if (typeof value === 'string' && value.trim().length > 0) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    return fallback;
+};
+
+const toStringValue = (value: unknown, fallback = ''): string => {
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    return fallback;
+};
+
+const toStringArray = (value: unknown): string[] =>
+    Array.isArray(value) ? value.map((item) => toStringValue(item)).filter(Boolean) : [];
+
+const mapQueue = (raw: RawQueue, index: number): Queue => {
+    const queueName = toStringValue(
+        raw.queue_name ?? raw.queueName ?? raw.name ?? raw.id,
+        `queue-${index + 1}`
+    );
+
+    const available = toNumber(raw.available_messages ?? raw.availableMessages);
+    const inFlight = toNumber(raw.in_flight_messages ?? raw.inFlightMessages);
+    const total = toNumber(raw.message_count ?? raw.messageCount, available + inFlight);
+
+    return {
+        id: queueName,
+        queueName,
+        messageCount: total,
+        availableMessages: available,
+        inFlightMessages: inFlight,
+        permissions: toStringArray(raw.permissions)
+    };
+};
+
+const normaliseQueuesPayload = (payload: unknown): QueueCollection => {
+    const envelope: RawQueuesEnvelope | undefined =
+        payload && typeof payload === 'object' ? (payload as RawQueuesEnvelope) : undefined;
+
+    const rawQueues = Array.isArray(envelope?.queues)
+        ? (envelope?.queues as RawQueue[])
+        : ensureArray<RawQueue>(payload);
+
+    const queues = rawQueues.map((raw, index) => mapQueue(raw, index));
+
+    const count = toNumber(envelope?.count, queues.length);
+
+    const apiKeyDescriptionCandidate =
+        envelope?.api_key_description ?? (envelope as Record<string, unknown> | undefined)?.apiKeyDescription;
+
+    const apiKeyDescription =
+        typeof apiKeyDescriptionCandidate === 'string' ? apiKeyDescriptionCandidate : undefined;
+
+    return {
+        queues,
+        count,
+        apiKeyDescription
+    };
+};
+
+const findQueueByName = (queues: Queue[], queueName: string): Queue | undefined =>
+    queues.find((queue) => queue.queueName === queueName || queue.id === queueName);
+
+export const getQueues = async (): Promise<QueueCollection> => {
+    const payload = await request<unknown>({ method: 'GET', url: '/queues' });
+    return normaliseQueuesPayload(payload);
+};
+
+export const getQueueDetails = async (queueId: string): Promise<Queue> => {
+    const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}` });
+
+    if (payload && typeof payload === 'object') {
+        const envelope = payload as RawQueuesEnvelope & { queue?: RawQueue };
+
+        if (envelope.queue) {
+            return mapQueue(envelope.queue, 0);
+        }
+
+        if (Array.isArray(envelope.queues)) {
+            const { queues } = normaliseQueuesPayload(envelope);
+            return findQueueByName(queues, queueId) ?? queues[0];
+        }
+    }
+
+    if (Array.isArray(payload)) {
+        const { queues } = normaliseQueuesPayload(payload);
+        return findQueueByName(queues, queueId) ?? queues[0];
+    }
+
+    return mapQueue((payload as RawQueue) ?? { queue_name: queueId }, 0);
+};
 
 export const getQueueMessages = async (queueId: string): Promise<Message[]> => {
     const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}/messages` });
@@ -76,38 +194,24 @@ export interface CreateQueuePayload {
     description?: string;
 }
 
-export const createQueue = async (payload: CreateQueuePayload): Promise<Queue> =>
-    request<Queue>({ method: 'POST', url: '/queues', data: payload });
+export const createQueue = async (payload: CreateQueuePayload): Promise<Queue> => {
+    const response = await request<unknown>({ method: 'POST', url: '/queues', data: payload });
+
+    if (response && typeof response === 'object') {
+        const envelope = response as RawQueuesEnvelope & { queue?: RawQueue };
+        if (envelope.queue) {
+            return mapQueue(envelope.queue, 0);
+        }
+
+        if (Array.isArray(envelope.queues)) {
+            const { queues } = normaliseQueuesPayload(envelope);
+            return queues[0];
+        }
+    }
+
+    return mapQueue((response as RawQueue) ?? { queue_name: payload.name }, 0);
+};
 
 export const deleteQueue = async (queueId: string): Promise<void> => {
     await request<void>({ method: 'DELETE', url: `/queues/${queueId}` });
-};
-
-export const getTopics = async (): Promise<Topic[]> => {
-    const payload = await request<unknown>({ method: 'GET', url: '/topics' });
-    return ensureArray<Topic>(payload);
-};
-
-export interface CreateTopicPayload {
-    name: string;
-    partitions?: number;
-    replicationFactor?: number;
-}
-
-export const createTopic = async (payload: CreateTopicPayload): Promise<Topic> =>
-    request<Topic>({ method: 'POST', url: '/topics', data: payload });
-
-export const updateTopic = async (
-    topicId: string,
-    payload: Partial<CreateTopicPayload>
-): Promise<Topic> =>
-    request<Topic>({ method: 'PUT', url: `/topics/${topicId}`, data: payload });
-
-export const deleteTopic = async (topicId: string): Promise<void> => {
-    await request<void>({ method: 'DELETE', url: `/topics/${topicId}` });
-};
-
-export const getConsumerGroups = async (): Promise<ConsumerGroup[]> => {
-    const payload = await request<unknown>({ method: 'GET', url: '/consumer-groups' });
-    return ensureArray<ConsumerGroup>(payload);
 };

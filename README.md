@@ -6,8 +6,7 @@ A web interface for managing PyQueue Server queues, messages, and monitoring.
 
 - 📊 Real-time queue monitoring and statistics
 - 📝 Message viewer with search and filtering
-- 🎯 Topic/Queue management
-- 👥 Consumer group tracking
+- 🎯 Queue management actions
 - 🔄 Live updates and auto-refresh
 - 🎨 Clean, intuitive UI similar to Kafka-UI
 
@@ -89,8 +88,6 @@ pyqueue-ui/
 │   │   ├── QueueList/          # Queue listing view
 │   │   ├── QueueDetails/       # Queue detail view
 │   │   ├── MessageViewer/      # Message browsing
-│   │   ├── TopicManager/       # Topic/queue management
-│   │   └── ConsumerGroups/     # Consumer group info
 │   ├── services/        # API clients
 │   ├── types/           # TypeScript definitions
 │   ├── utils/           # Helper functions

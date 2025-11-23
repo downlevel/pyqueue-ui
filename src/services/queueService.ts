@@ -161,7 +161,7 @@ export const getQueues = async (): Promise<QueueCollection> => {
 };
 
 export const getQueueDetails = async (queueId: string): Promise<Queue> => {
-    const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}` });
+    const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}/info` });
 
     if (payload && typeof payload === 'object') {
         const envelope = payload as RawQueuesEnvelope & { queue?: RawQueue };
@@ -185,7 +185,8 @@ export const getQueueDetails = async (queueId: string): Promise<Queue> => {
 };
 
 export const getQueueMessages = async (queueId: string): Promise<Message[]> => {
-    const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}/messages` });
+    const encodedId = encodeURIComponent(queueId);
+    const payload = await request<unknown>({ method: 'GET', url: `/queues/${encodedId}/messages` });
     return ensureArray<Message>(payload);
 };
 
@@ -213,5 +214,6 @@ export const createQueue = async (payload: CreateQueuePayload): Promise<Queue> =
 };
 
 export const deleteQueue = async (queueId: string): Promise<void> => {
-    await request<void>({ method: 'DELETE', url: `/queues/${queueId}` });
+    const encodedId = encodeURIComponent(queueId);
+    await request<void>({ method: 'DELETE', url: `/queues/${encodedId}` });
 };

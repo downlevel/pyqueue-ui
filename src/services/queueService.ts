@@ -2,17 +2,22 @@ import axios, { type AxiosRequestConfig } from 'axios';
 import type { ConsumerGroup, Message, Queue, Topic } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 const client = axios.create({
     baseURL: API_BASE_URL,
     timeout: 12_000
 });
 
+if (API_KEY) {
+    client.defaults.headers.common['x-api-key'] = API_KEY;
+}
+
 const request = async <T>(config: AxiosRequestConfig): Promise<T> => {
     try {
         const { data } = await client.request<T>(config);
         return data;
-    } catch (error) {
+    } catch (error: unknown) {
         if (axios.isAxiosError(error)) {
             const message =
                 (error.response?.data as { message?: string } | undefined)?.message ??

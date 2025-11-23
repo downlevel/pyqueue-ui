@@ -28,20 +28,22 @@ npm install
 Copy `.env.example` to `.env` and configure:
 
 ```env
-REACT_APP_UI_PORT=3000
-REACT_APP_API_HOST=localhost
-REACT_APP_API_PORT=8000
-REACT_APP_API_URL=http://localhost:8000
+VITE_UI_PORT=3000
+VITE_API_HOST=localhost
+VITE_API_PORT=8000
+VITE_API_URL=http://localhost:8000
+# Optional: API key header
+VITE_API_KEY=
 ```
 
 ## Development
 
 ```bash
 # Start development server
-npm start
+npm run dev
 ```
 
-The app will open at `http://localhost:3000`
+By default Vite serves at `http://localhost:5173`; use `npm run dev -- --host --port 3000` if you prefer a custom port.
 
 ## Building for Production
 
@@ -74,7 +76,7 @@ docker-compose down
 docker build -t pyqueue-ui .
 
 # Run the container
-docker run -p 3000:80 -e REACT_APP_API_URL=http://localhost:8000 pyqueue-ui
+docker run -p 3000:80 -e VITE_API_URL=http://localhost:8000 pyqueue-ui
 ```
 
 ## Project Structure
@@ -90,7 +92,6 @@ pyqueue-ui/
 │   │   ├── TopicManager/       # Topic/queue management
 │   │   └── ConsumerGroups/     # Consumer group info
 │   ├── services/        # API clients
-│   ├── hooks/           # Custom React hooks
 │   ├── types/           # TypeScript definitions
 │   ├── utils/           # Helper functions
 │   └── styles/          # Global styles
@@ -114,10 +115,11 @@ The UI connects to PyQueue Server API endpoints:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `REACT_APP_UI_PORT` | UI development port | 3000 |
-| `REACT_APP_API_HOST` | API server hostname | localhost |
-| `REACT_APP_API_PORT` | API server port | 8000 |
-| `REACT_APP_API_URL` | Full API URL | http://localhost:8000 |
+| `VITE_UI_PORT` | Dev server port override | 3000 |
+| `VITE_API_HOST` | API server hostname | localhost |
+| `VITE_API_PORT` | API server port | 8000 |
+| `VITE_API_URL` | Full API base URL | http://localhost:8000 |
+| `VITE_API_KEY` | Optional API key sent as `x-api-key` | *(unset)* |
 
 ## Technologies
 
@@ -131,51 +133,3 @@ The UI connects to PyQueue Server API endpoints:
 ## License
 
 MIT License - See parent project for details
-
-- Consumer group management
-
-## Getting Started
-
-### Prerequisites
-- Node.js (version 14 or higher)
-- npm (Node Package Manager)
-
-### Installation
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
-   cd pyqueue-ui
-   ```
-3. Install the dependencies:
-   ```
-   npm install
-   ```
-
-### Running the Application
-To start the development server, run:
-```
-npm start
-```
-The application will be available at `http://localhost:3000`.
-
-### Building for Production
-To create a production build, run:
-```
-npm run build
-```
-This will generate a `build` directory with the optimized application.
-
-## Folder Structure
-- `public/`: Contains static files like `index.html` and `manifest.json`.
-- `src/`: Contains the source code for the application, including components, services, hooks, and styles.
-- `package.json`: Configuration file for npm.
-- `tsconfig.json`: TypeScript configuration file.
-
-## Contributing
-Contributions are welcome! Please open an issue or submit a pull request for any enhancements or bug fixes.
-
-## License
-This project is licensed under the MIT License. See the LICENSE file for details.

@@ -29,14 +29,42 @@ const request = async <T>(config: AxiosRequestConfig): Promise<T> => {
     }
 };
 
-export const getQueues = async (): Promise<Queue[]> =>
-    request<Queue[]>({ method: 'GET', url: '/queues' });
+const ensureArray = <T>(payload: unknown): T[] => {
+    if (Array.isArray(payload)) {
+        return payload as T[];
+    }
+
+    if (payload && typeof payload === 'object') {
+        const candidates = ['items', 'data', 'records', 'results', 'queues', 'topics', 'messages'];
+
+        for (const key of candidates) {
+            const value = (payload as Record<string, unknown>)[key];
+            if (Array.isArray(value)) {
+                return value as T[];
+            }
+        }
+
+        const firstArray = Object.values(payload as Record<string, unknown>).find(Array.isArray);
+        if (Array.isArray(firstArray)) {
+            return firstArray as T[];
+        }
+    }
+
+    return [];
+};
+
+export const getQueues = async (): Promise<Queue[]> => {
+    const payload = await request<unknown>({ method: 'GET', url: '/queues' });
+    return ensureArray<Queue>(payload);
+};
 
 export const getQueueDetails = async (queueId: string): Promise<Queue> =>
     request<Queue>({ method: 'GET', url: `/queues/${queueId}` });
 
-export const getQueueMessages = async (queueId: string): Promise<Message[]> =>
-    request<Message[]>({ method: 'GET', url: `/queues/${queueId}/messages` });
+export const getQueueMessages = async (queueId: string): Promise<Message[]> => {
+    const payload = await request<unknown>({ method: 'GET', url: `/queues/${queueId}/messages` });
+    return ensureArray<Message>(payload);
+};
 
 export interface CreateQueuePayload {
     name: string;
@@ -50,8 +78,10 @@ export const deleteQueue = async (queueId: string): Promise<void> => {
     await request<void>({ method: 'DELETE', url: `/queues/${queueId}` });
 };
 
-export const getTopics = async (): Promise<Topic[]> =>
-    request<Topic[]>({ method: 'GET', url: '/topics' });
+export const getTopics = async (): Promise<Topic[]> => {
+    const payload = await request<unknown>({ method: 'GET', url: '/topics' });
+    return ensureArray<Topic>(payload);
+};
 
 export interface CreateTopicPayload {
     name: string;
@@ -72,5 +102,7 @@ export const deleteTopic = async (topicId: string): Promise<void> => {
     await request<void>({ method: 'DELETE', url: `/topics/${topicId}` });
 };
 
-export const getConsumerGroups = async (): Promise<ConsumerGroup[]> =>
-    request<ConsumerGroup[]>({ method: 'GET', url: '/consumer-groups' });
+export const getConsumerGroups = async (): Promise<ConsumerGroup[]> => {
+    const payload = await request<unknown>({ method: 'GET', url: '/consumer-groups' });
+    return ensureArray<ConsumerGroup>(payload);
+};

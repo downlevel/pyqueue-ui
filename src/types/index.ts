@@ -1,8 +1,9 @@
 export interface Queue {
     id: string;
     name: string;
-    createdAt: string;
-    updatedAt: string;
+    description?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface Message {
@@ -15,8 +16,8 @@ export interface Message {
 export interface Topic {
     id: string;
     name: string;
-    partitions: number;
-    replicationFactor: number;
+    partitions?: number;
+    replicationFactor?: number;
 }
 
 export interface ConsumerGroup {

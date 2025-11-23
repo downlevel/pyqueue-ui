@@ -1,28 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getQueues } from '../services/queueService';
-import { Queue } from '../types';
+import type { Queue } from '../types';
 
 const useQueue = () => {
-    const [queues, setQueues] = useState<Queue[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    const { data, isLoading, isError, error } = useQuery<Queue[], Error>({
+        queryKey: ['queues'],
+        queryFn: getQueues
+    });
 
-    useEffect(() => {
-        const fetchQueues = async () => {
-            try {
-                const data = await getQueues();
-                setQueues(data);
-            } catch (err) {
-                setError('Failed to fetch queues');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchQueues();
-    }, []);
-
-    return { queues, loading, error };
+    return {
+        queues: data ?? [],
+        loading: isLoading,
+        error: isError ? error?.message ?? 'Failed to fetch queues.' : null
+    };
 };
 
 export default useQueue;

@@ -1,27 +1,40 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getConsumerGroups } from '../../services/queueService';
+import type { ConsumerGroup } from '../../types';
 
 const ConsumerGroups: React.FC = () => {
-    const [consumerGroups, setConsumerGroups] = useState([]);
+    const { data, isLoading, isError, error } = useQuery<ConsumerGroup[], Error>({
+        queryKey: ['consumer-groups'],
+        queryFn: getConsumerGroups
+    });
 
-    useEffect(() => {
-        const fetchConsumerGroups = async () => {
-            const groups = await getConsumerGroups();
-            setConsumerGroups(groups);
-        };
+    if (isLoading) {
+        return <div className="status-card">Loading consumer groups…</div>;
+    }
 
-        fetchConsumerGroups();
-    }, []);
+    if (isError) {
+        return <div className="status-card error">{error.message}</div>;
+    }
+
+    const groups = data ?? [];
+
+    if (groups.length === 0) {
+        return <div className="status-card">No consumer groups registered.</div>;
+    }
 
     return (
-        <div>
+        <section className="card consumer-groups">
             <h2>Consumer Groups</h2>
             <ul>
-                {consumerGroups.map((group) => (
-                    <li key={group.id}>{group.name}</li>
+                {groups.map((group) => (
+                    <li key={group.id} className="consumer-group">
+                        <h3>{group.name}</h3>
+                        <p>Members: {group.members.length}</p>
+                    </li>
                 ))}
             </ul>
-        </div>
+        </section>
     );
 };
 

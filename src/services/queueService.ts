@@ -58,6 +58,9 @@ const ensureArray = <T>(payload: unknown): T[] => {
     return [];
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
 type RawQueue = {
     queue_name?: unknown;
     queueName?: unknown;
@@ -107,6 +110,28 @@ const toStringValue = (value: unknown, fallback = ''): string => {
 const toStringArray = (value: unknown): string[] =>
     Array.isArray(value) ? value.map((item) => toStringValue(item)).filter(Boolean) : [];
 
+type RawMessage = {
+    id?: unknown;
+    message_id?: unknown;
+    uuid?: unknown;
+    timestamp?: unknown;
+    created_at?: unknown;
+    updated_at?: unknown;
+    status?: unknown;
+    state?: unknown;
+    visibility_timeout?: unknown;
+    visibilityTimeout?: unknown;
+    receipt_handle?: unknown;
+    receiptHandle?: unknown;
+    receive_count?: unknown;
+    receiveCount?: unknown;
+    message_body?: unknown;
+    messageBody?: unknown;
+    body?: unknown;
+    queue_id?: unknown;
+    queueId?: unknown;
+};
+
 const mapQueue = (raw: RawQueue, index: number): Queue => {
     const queueName = toStringValue(
         raw.queue_name ?? raw.queueName ?? raw.name ?? raw.id,
@@ -155,6 +180,55 @@ const normaliseQueuesPayload = (payload: unknown): QueueCollection => {
 const findQueueByName = (queues: Queue[], queueName: string): Queue | undefined =>
     queues.find((queue) => queue.queueName === queueName || queue.id === queueName);
 
+const mapMessage = (raw: RawMessage, index: number): Message => {
+    const id = toStringValue(raw.id ?? raw.message_id ?? raw.uuid, `message-${index + 1}`);
+    const timestamp = toStringValue(raw.timestamp ?? raw.created_at ?? raw.updated_at, '');
+    const status = toStringValue(raw.status ?? raw.state, '');
+
+    const visibilityTimeoutValue = raw.visibility_timeout ?? raw.visibilityTimeout;
+    const visibilityTimeout =
+        visibilityTimeoutValue === null || visibilityTimeoutValue === undefined
+            ? null
+            : toStringValue(visibilityTimeoutValue);
+
+    const receiptHandleValue = raw.receipt_handle ?? raw.receiptHandle;
+    const receiptHandle =
+        receiptHandleValue === null || receiptHandleValue === undefined
+            ? null
+            : toStringValue(receiptHandleValue);
+
+    const receiveCountValue = raw.receive_count ?? raw.receiveCount;
+    const receiveCount =
+        receiveCountValue === null || receiveCountValue === undefined
+            ? undefined
+            : toNumber(receiveCountValue, 0);
+
+    const queueIdValue = raw.queue_id ?? raw.queueId;
+    const queueId =
+        queueIdValue === null || queueIdValue === undefined
+            ? undefined
+            : toStringValue(queueIdValue);
+
+    const messageBody = raw.message_body ?? raw.messageBody ?? raw.body ?? null;
+
+    return {
+        id,
+        timestamp,
+        status: status || undefined,
+        visibilityTimeout,
+        receiptHandle,
+        receiveCount,
+        queueId: queueId && queueId.length > 0 ? queueId : undefined,
+        messageBody,
+        raw: isPlainObject(raw) ? (raw as Record<string, unknown>) : undefined
+    };
+};
+
+const normaliseMessages = (payload: unknown): Message[] => {
+    const rawMessages = ensureArray<RawMessage>(payload);
+    return rawMessages.map((raw, index) => mapMessage(raw, index));
+};
+
 export const getQueues = async (): Promise<QueueCollection> => {
     const payload = await request<unknown>({ method: 'GET', url: '/queues' });
     return normaliseQueuesPayload(payload);
@@ -187,7 +261,7 @@ export const getQueueDetails = async (queueId: string): Promise<Queue> => {
 export const getQueueMessages = async (queueId: string): Promise<Message[]> => {
     const encodedId = encodeURIComponent(queueId);
     const payload = await request<unknown>({ method: 'GET', url: `/queues/${encodedId}/messages` });
-    return ensureArray<Message>(payload);
+    return normaliseMessages(payload);
 };
 
 export interface CreateQueuePayload {

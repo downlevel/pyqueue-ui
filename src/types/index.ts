@@ -15,7 +15,12 @@ export interface QueueCollection {
 
 export interface Message {
     id: string;
-    content: string;
     timestamp: string;
-    queueId: string;
+    status?: string;
+    visibilityTimeout?: string | null;
+    receiptHandle?: string | null;
+    receiveCount?: number;
+    messageBody: unknown;
+    queueId?: string;
+    raw?: Record<string, unknown>;
 }

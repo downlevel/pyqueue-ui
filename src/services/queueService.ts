@@ -1,5 +1,5 @@
 import axios, { type AxiosRequestConfig } from 'axios';
-import type { Message, Queue, QueueCollection } from '../types';
+import type { Message, MessagePage, Queue, QueueCollection } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 const API_KEY = import.meta.env.VITE_API_KEY;
@@ -132,6 +132,16 @@ type RawMessage = {
     queueId?: unknown;
 };
 
+type RawMessagesEnvelope = {
+    messages?: RawMessage[];
+    count?: unknown;
+    total?: unknown;
+    offset?: unknown;
+    limit?: unknown;
+    has_more?: unknown;
+    hasMore?: unknown;
+};
+
 const mapQueue = (raw: RawQueue, index: number): Queue => {
     const queueName = toStringValue(
         raw.queue_name ?? raw.queueName ?? raw.name ?? raw.id,
@@ -224,9 +234,39 @@ const mapMessage = (raw: RawMessage, index: number): Message => {
     };
 };
 
-const normaliseMessages = (payload: unknown): Message[] => {
-    const rawMessages = ensureArray<RawMessage>(payload);
-    return rawMessages.map((raw, index) => mapMessage(raw, index));
+const normaliseMessagesPayload = (payload: unknown): MessagePage => {
+    const envelope: (RawMessagesEnvelope & Record<string, unknown>) | undefined = isPlainObject(payload)
+        ? (payload as RawMessagesEnvelope & Record<string, unknown>)
+        : undefined;
+
+    const rawMessages = Array.isArray(envelope?.messages)
+        ? (envelope.messages as RawMessage[])
+        : ensureArray<RawMessage>(payload);
+
+    const messages = rawMessages.map((raw, index) => mapMessage(raw, index));
+
+    const countValue = toNumber(envelope?.count, messages.length);
+    const totalValue = toNumber(envelope?.total, Math.max(countValue, messages.length));
+    const offsetValue = toNumber(envelope?.offset, 0);
+    const limitValue = toNumber(envelope?.limit, countValue || messages.length || 10);
+
+    const hasMoreCandidate = envelope?.has_more ?? envelope?.hasMore;
+    const computedCount = countValue > 0 ? countValue : messages.length;
+    const computedTotal = totalValue >= computedCount ? totalValue : computedCount;
+    const computedLimit = limitValue > 0 ? limitValue : computedCount || 10;
+
+    const inferredHasMore = offsetValue + computedCount < computedTotal;
+    const hasMore =
+        typeof hasMoreCandidate === 'boolean' ? hasMoreCandidate : inferredHasMore;
+
+    return {
+        messages,
+        count: computedCount,
+        total: computedTotal,
+        offset: offsetValue,
+        limit: computedLimit,
+        hasMore
+    };
 };
 
 export const getQueues = async (): Promise<QueueCollection> => {
@@ -258,10 +298,33 @@ export const getQueueDetails = async (queueId: string): Promise<Queue> => {
     return mapQueue((payload as RawQueue) ?? { queue_name: queueId }, 0);
 };
 
-export const getQueueMessages = async (queueId: string): Promise<Message[]> => {
+export interface MessageQueryParams {
+    limit?: number;
+    offset?: number;
+}
+
+export const getQueueMessages = async (
+    queueId: string,
+    params: MessageQueryParams = {}
+): Promise<MessagePage> => {
     const encodedId = encodeURIComponent(queueId);
-    const payload = await request<unknown>({ method: 'GET', url: `/queues/${encodedId}/messages` });
-    return normaliseMessages(payload);
+    const queryParams: Record<string, number> = {};
+
+    if (typeof params.limit === 'number') {
+        queryParams.limit = params.limit;
+    }
+
+    if (typeof params.offset === 'number') {
+        queryParams.offset = params.offset;
+    }
+
+    const payload = await request<unknown>({
+        method: 'GET',
+        url: `/queues/${encodedId}/messages`,
+        params: queryParams
+    });
+
+    return normaliseMessagesPayload(payload);
 };
 
 export interface CreateQueuePayload {

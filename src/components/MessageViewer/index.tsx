@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getQueueMessages } from '../../services/queueService';
-import type { Message } from '../../types';
+import type { MessagePage } from '../../types';
 import { formatDate } from '../../utils/helpers';
 
 const toTitleCase = (value: string): string =>
@@ -48,20 +48,53 @@ const getBodyPreview = (body: unknown, length = 90): string => {
 const MessageViewer: React.FC = () => {
     const { queueId } = useParams<{ queueId: string }>();
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+
+    const offset = page * pageSize;
 
     const {
-        data: messages,
+        data: messagePage,
         isLoading,
         isError,
         error
-    } = useQuery<Message[], Error>({
-        queryKey: ['queue', queueId, 'messages'],
-        queryFn: () => getQueueMessages(queueId ?? ''),
-        enabled: Boolean(queueId)
+    } = useQuery<MessagePage, Error>({
+        queryKey: ['queue', queueId, 'messages', offset, pageSize],
+        queryFn: () => getQueueMessages(queueId ?? '', { limit: pageSize, offset }),
+        enabled: Boolean(queueId),
+        keepPreviousData: true,
+        staleTime: 5_000
     });
 
+    useEffect(() => {
+        setPage(0);
+        setExpandedId(null);
+    }, [queueId]);
+
+    useEffect(() => {
+        if (!messagePage) {
+            return;
+        }
+
+        const total = messagePage.total;
+        if (total === 0) {
+            if (page !== 0) {
+                setPage(0);
+            }
+            return;
+        }
+
+        const maxPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+        if (page > maxPage) {
+            setPage(maxPage);
+            setExpandedId(null);
+        }
+    }, [messagePage, page, pageSize]);
+
+    const messages = messagePage?.messages ?? [];
+
     const statusSummary = useMemo(() => {
-        if (!messages) {
+        if (!messages || messages.length === 0) {
             return [];
         }
 
@@ -86,12 +119,45 @@ const MessageViewer: React.FC = () => {
         return <div className="status-card error">{error.message}</div>;
     }
 
-    if (!messages || messages.length === 0) {
-        return <div className="status-card">No messages available for this queue.</div>;
-    }
-
     const toggleRow = (messageId: string) => {
         setExpandedId((current) => (current === messageId ? null : messageId));
+    };
+
+    const totalMessages = messagePage ? Math.max(messagePage.total, messagePage.count, messages.length) : messages.length;
+
+    if (messagePage && messagePage.total === 0 && messagePage.count === 0) {
+        return <div className="status-card">No messages available for this queue.</div>;
+    }
+    const displayedFrom = totalMessages === 0 ? 0 : Math.min(offset + 1, totalMessages);
+    const displayedTo = totalMessages === 0 ? 0 : Math.min(offset + messages.length, totalMessages);
+    const canPrevious = page > 0;
+    const canNext = messagePage?.hasMore ?? false;
+    const pageCount = totalMessages > 0 ? Math.ceil(totalMessages / pageSize) : 1;
+
+    const handlePrevious = () => {
+        if (!canPrevious) {
+            return;
+        }
+        setPage((current) => Math.max(0, current - 1));
+        setExpandedId(null);
+    };
+
+    const handleNext = () => {
+        if (!canNext) {
+            return;
+        }
+        setPage((current) => current + 1);
+        setExpandedId(null);
+    };
+
+    const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const nextSize = Number(event.target.value);
+        if (Number.isNaN(nextSize) || nextSize <= 0) {
+            return;
+        }
+        setPageSize(nextSize);
+        setPage(0);
+        setExpandedId(null);
     };
 
     return (
@@ -100,7 +166,8 @@ const MessageViewer: React.FC = () => {
                 <div>
                     <h2>Messages</h2>
                     <p className="message-viewer__subtitle">
-                        {messages.length} {messages.length === 1 ? 'message' : 'messages'} loaded
+                        Showing {displayedFrom} – {displayedTo} of {totalMessages}{' '}
+                        {totalMessages === 1 ? 'message' : 'messages'}
                     </p>
                 </div>
                 {statusSummary.length > 0 && (
@@ -204,6 +271,39 @@ const MessageViewer: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            <footer className="message-viewer__footer">
+                <div className="pagination">
+                    <button
+                        type="button"
+                        className="button tertiary"
+                        onClick={handlePrevious}
+                        disabled={!canPrevious}
+                    >
+                        Previous
+                    </button>
+                    <span className="pagination__info">
+                        Page {Math.min(page + 1, pageCount)} of {pageCount}
+                    </span>
+                    <button
+                        type="button"
+                        className="button tertiary"
+                        onClick={handleNext}
+                        disabled={!canNext}
+                    >
+                        Next
+                    </button>
+                </div>
+                <label className="page-size">
+                    <span>Rows per page</span>
+                    <select value={pageSize} onChange={handlePageSizeChange}>
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                    </select>
+                </label>
+            </footer>
         </section>
     );
 };

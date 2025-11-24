@@ -24,3 +24,12 @@ export interface Message {
     queueId?: string;
     raw?: Record<string, unknown>;
 }
+
+export interface MessagePage {
+    messages: Message[];
+    count: number;
+    total: number;
+    offset: number;
+    limit: number;
+    hasMore: boolean;
+}

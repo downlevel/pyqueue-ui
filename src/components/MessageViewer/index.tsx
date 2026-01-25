@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { getQueueMessages } from '../../services/queueService';
-import type { MessagePage } from '../../types';
+import type { Message, MessagePage } from '../../types';
 import { formatDate } from '../../utils/helpers';
 
 const toTitleCase = (value: string): string =>
@@ -62,7 +62,7 @@ const MessageViewer: React.FC = () => {
         queryKey: ['queue', queueId, 'messages', offset, pageSize],
         queryFn: () => getQueueMessages(queueId ?? '', { limit: pageSize, offset }),
         enabled: Boolean(queueId),
-        keepPreviousData: true,
+        placeholderData: keepPreviousData,
         staleTime: 5_000
     });
 
@@ -98,7 +98,7 @@ const MessageViewer: React.FC = () => {
             return [];
         }
 
-        const tally = messages.reduce<Record<string, number>>((accumulator, message) => {
+        const tally = messages.reduce<Record<string, number>>((accumulator: Record<string, number>, message: Message) => {
             const key = message.status ?? 'unknown';
             accumulator[key] = (accumulator[key] ?? 0) + 1;
             return accumulator;
@@ -197,7 +197,7 @@ const MessageViewer: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {messages.map((message) => {
+                        {messages.map((message: Message) => {
                             const isExpanded = expandedId === message.id;
                             const visibilityLabel = message.visibilityTimeout
                                 ? formatDate(message.visibilityTimeout)

@@ -47,6 +47,9 @@ docker run -p 3000:80 pyqueue-ui
 pyqueue-ui/
 ├── src/
 │   ├── components/           # React components (folder-per-component)
+│   │   ├── Sidebar/          # Navigation sidebar with stats
+│   │   ├── Header/           # Top header with breadcrumbs
+│   │   ├── Breadcrumbs/      # Breadcrumb navigation
 │   │   ├── QueueList/        # Queue listing with overview stats
 │   │   ├── QueueDetails/     # Individual queue view
 │   │   └── MessageViewer/    # Paginated message browser
@@ -57,8 +60,8 @@ pyqueue-ui/
 │   ├── utils/
 │   │   └── helpers.ts        # Utility functions
 │   ├── styles/
-│   │   └── index.css         # Global CSS styles
-│   ├── App.tsx               # Root component with routing
+│   │   └── index.css         # Modern design system with CSS variables
+│   ├── App.tsx               # Root component with layout and routing
 │   └── main.tsx              # Application entry point
 ├── public/                   # Static assets
 ├── dist/                     # Production build output
@@ -121,11 +124,22 @@ export const getQueues = async (): Promise<QueueCollection> => {
 ### CSS Conventions
 
 - **BEM-like naming**: `.component__element--modifier` pattern
-- **CSS variables**: Colors defined as CSS custom properties
+- **CSS variables**: Comprehensive design tokens in `:root`
 - **No CSS frameworks**: Pure CSS with custom design system
-- **Responsive breakpoint**: 768px for mobile layouts
+- **Dark mode**: Automatic via `prefers-color-scheme` media query
+- **Glassmorphism**: Backdrop blur effects on sidebar/header
+- **Responsive breakpoints**: 1024px (tablet), 768px (mobile), 480px (small)
 
 ```css
+/* Design Token Categories */
+:root {
+    /* Colors: --color-primary, --color-success, --color-warning, etc. */
+    /* Spacing: --space-xs, --space-sm, --space-md, --space-lg, --space-xl */
+    /* Shadows: --shadow-sm, --shadow-md, --shadow-lg, --shadow-xl */
+    /* Radius: --radius-sm, --radius-md, --radius-lg, --radius-full */
+    /* Transitions: --transition-fast, --transition-base, --transition-slow */
+}
+
 /* Example class naming */
 .queue-card { }
 .queue-card__header { }
@@ -249,17 +263,53 @@ Currently no test framework is configured. When adding tests:
 1. **API Response Normalization**: The service layer handles multiple API response formats - don't assume consistent casing from the backend
 2. **URL Encoding**: Queue IDs are URL-encoded in routes (`encodeURIComponent`)
 3. **Pagination**: Messages endpoint uses `offset`/`limit` parameters
-4. **React Query Keys**: Ensure unique query keys for proper cache invalidation
-5. **No ESLint/Prettier**: Project doesn't have linting configured - follow existing code style
+4. **React Query v5**: Use `placeholderData: keepPreviousData` instead of deprecated `keepPreviousData: true`
+5. **React Query Keys**: Ensure unique query keys for proper cache invalidation
+6. **Dark Mode**: Automatic via CSS `prefers-color-scheme` - test both themes when styling
+7. **Mobile Sidebar**: Hidden by default on <1024px, toggle via mobile menu button
+8. **No ESLint/Prettier**: Project doesn't have linting configured - follow existing code style
+
+## Layout Architecture
+
+The app uses a sidebar layout with these main components:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Sidebar (fixed)  │        Main Content             │
+│  ┌─────────────┐  │  ┌───────────────────────────┐  │
+│  │   Logo      │  │  │   Header (sticky)         │  │
+│  ├─────────────┤  │  │   - Mobile menu button    │  │
+│  │   Nav       │  │  │   - Breadcrumbs           │  │
+│  │   - Dashboard│  │  │   - Status indicator      │  │
+│  │   - Queues  │  │  ├───────────────────────────┤  │
+│  ├─────────────┤  │  │   App Main                │  │
+│  │   Stats     │  │  │   (page content)          │  │
+│  ├─────────────┤  │  │                           │  │
+│  │   Footer    │  │  │                           │  │
+│  └─────────────┘  │  └───────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+- **Sidebar**: Collapsible on mobile (<1024px), glassmorphism effect
+- **Header**: Sticky, contains breadcrumbs and connection status
+- **AppLayout**: Wrapper component in `App.tsx` managing sidebar state
 
 ## File Locations Reference
 
 - **Main entry**: `src/main.tsx`
 - **Root component**: `src/App.tsx`
+- **Layout components**:
+  - Sidebar: `src/components/Sidebar/index.tsx`
+  - Header: `src/components/Header/index.tsx`
+  - Breadcrumbs: `src/components/Breadcrumbs/index.tsx`
+- **Page components**:
+  - QueueList: `src/components/QueueList/index.tsx`
+  - QueueDetails: `src/components/QueueDetails/index.tsx`
+  - MessageViewer: `src/components/MessageViewer/index.tsx`
 - **API client**: `src/services/queueService.ts`
 - **Type definitions**: `src/types/index.ts`
 - **Utilities**: `src/utils/helpers.ts`
-- **Global styles**: `src/styles/index.css`
+- **Design system**: `src/styles/index.css`
 - **Build config**: `vite.config.ts`
 - **TS config**: `tsconfig.json`
 - **Docker config**: `Dockerfile`, `nginx.conf`

@@ -1,33 +1,46 @@
 import React from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import Breadcrumbs from '../Breadcrumbs';
 
-interface HeaderProps {
-    onMenuClick: () => void;
-}
+const Header: React.FC = () => {
+    const location = useLocation();
+    const isHome = location.pathname === '/';
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     return (
         <header className="app-header">
             <div className="header__left">
-                <button
-                    type="button"
-                    className="mobile-menu-btn"
-                    onClick={onMenuClick}
-                    aria-label="Toggle menu"
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12" />
-                        <line x1="3" y1="6" x2="21" y2="6" />
-                        <line x1="3" y1="18" x2="21" y2="18" />
-                    </svg>
-                </button>
-                <Breadcrumbs />
+                <Link to="/" className="header__logo">
+                    <div className="header__logo-icon">PQ</div>
+                    <span className="header__logo-text">PyQueue</span>
+                </Link>
+
+                <nav className="header__nav">
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
+                            `nav-link ${isActive ? 'nav-link--active' : ''}`
+                        }
+                        end
+                    >
+                        Dashboard
+                    </NavLink>
+                    <NavLink
+                        to="/"
+                        className={({ isActive }) =>
+                            `nav-link ${isActive && !isHome ? 'nav-link--active' : ''}`
+                        }
+                    >
+                        Queues
+                    </NavLink>
+                </nav>
+
+                {!isHome && <Breadcrumbs />}
             </div>
 
             <div className="header__right">
                 <div className="header__status">
                     <span className="header__status-dot"></span>
-                    <span>Connected</span>
+                    <span>Online</span>
                 </div>
             </div>
         </header>

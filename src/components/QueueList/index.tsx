@@ -68,106 +68,93 @@ const QueueList: React.FC = () => {
                 {queues.length === 0 ? (
                     <div className="status-card">No queues found. Create a queue to get started.</div>
                 ) : (
-                    <div className="queue-grid">
-                        {queues.map((queue) => {
-                            const totalForBar = Math.max(
-                                queue.messageCount,
-                                queue.availableMessages + queue.inFlightMessages
-                            );
-                            const availablePercent =
-                                totalForBar > 0
-                                    ? Math.round((queue.availableMessages / totalForBar) * 100)
-                                    : 0;
-                            const inFlightPercent =
-                                totalForBar > 0
-                                    ? Math.round((queue.inFlightMessages / totalForBar) * 100)
-                                    : 0;
-                            const remainingPercent = Math.max(
-                                0,
-                                100 - availablePercent - inFlightPercent
-                            );
+                    <div className="queue-table__wrapper">
+                        <table className="queue-table">
+                            <thead>
+                                <tr>
+                                    <th>Queue</th>
+                                    <th>Total</th>
+                                    <th>Available</th>
+                                    <th>In Flight</th>
+                                    <th>Capacity</th>
+                                    <th>Permissions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {queues.map((queue) => {
+                                    const totalForBar = Math.max(
+                                        queue.messageCount,
+                                        queue.availableMessages + queue.inFlightMessages
+                                    );
+                                    const availablePercent =
+                                        totalForBar > 0
+                                            ? Math.round((queue.availableMessages / totalForBar) * 100)
+                                            : 0;
+                                    const inFlightPercent =
+                                        totalForBar > 0
+                                            ? Math.round((queue.inFlightMessages / totalForBar) * 100)
+                                            : 0;
 
-                            return (
-                                <article key={queue.id} className="queue-card">
-                                    <header className="queue-card__header">
-                                        <div>
-                                            <h3>{toTitleCase(queue.queueName)}</h3>
-                                            <p className="queue-card__subtitle">{queue.queueName}</p>
-                                        </div>
-                                        <span className="queue-card__badge">
-                                            {queue.messageCount}{' '}
-                                            {queue.messageCount === 1 ? 'message' : 'messages'}
-                                        </span>
-                                    </header>
-
-                                    <div className="queue-card__stats">
-                                        <div className="queue-stat">
-                                            <span className="queue-stat__label">Available</span>
-                                            <span className="queue-stat__value">
+                                    return (
+                                        <tr key={queue.id}>
+                                            <td>
+                                                <div className="queue-name">
+                                                    {toTitleCase(queue.queueName)}
+                                                    <span className="queue-name__id">{queue.queueName}</span>
+                                                </div>
+                                            </td>
+                                            <td className="queue-stat-cell queue-stat-cell--total">
+                                                {queue.messageCount}
+                                            </td>
+                                            <td className="queue-stat-cell queue-stat-cell--available">
                                                 {queue.availableMessages}
-                                            </span>
-                                        </div>
-                                        <div className="queue-stat">
-                                            <span className="queue-stat__label">In flight</span>
-                                            <span className="queue-stat__value">
+                                            </td>
+                                            <td className="queue-stat-cell queue-stat-cell--inflight">
                                                 {queue.inFlightMessages}
-                                            </span>
-                                        </div>
-                                        <div className="queue-stat">
-                                            <span className="queue-stat__label">Permissions</span>
-                                            <span className="queue-stat__value">
-                                                {queue.permissions.length}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {queue.permissions.length > 0 && (
-                                        <div className="queue-card__permissions">
-                                            {queue.permissions.map((permission: string) => (
-                                                <span key={permission} className="queue-permission">
-                                                    {toTitleCase(permission)}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <div className="queue-capacity">
-                                        <div className="queue-capacity__legend">
-                                            <span>Available</span>
-                                            <span>In flight</span>
-                                        </div>
-                                        <div className="queue-capacity__bar">
-                                            <span
-                                                className="queue-capacity__segment queue-capacity__segment--available"
-                                                style={{ width: `${availablePercent}%` }}
-                                            />
-                                            <span
-                                                className="queue-capacity__segment queue-capacity__segment--inflight"
-                                                style={{ width: `${inFlightPercent}%` }}
-                                            />
-                                            {remainingPercent > 0 && (
-                                                <span
-                                                    className="queue-capacity__segment queue-capacity__segment--other"
-                                                    style={{ width: `${remainingPercent}%` }}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="queue-card__actions">
-                                        <Link className="button" to={`/queues/${encodeURIComponent(queue.queueName)}`}>
-                                            View details
-                                        </Link>
-                                        <Link
-                                            className="button secondary"
-                                            to={`/queues/${encodeURIComponent(queue.queueName)}/messages`}
-                                        >
-                                            Browse messages
-                                        </Link>
-                                    </div>
-                                </article>
-                            );
-                        })}
+                                            </td>
+                                            <td className="queue-capacity-cell">
+                                                <div className="queue-capacity__bar">
+                                                    <span
+                                                        className="queue-capacity__segment queue-capacity__segment--available"
+                                                        style={{ width: `${availablePercent}%` }}
+                                                    />
+                                                    <span
+                                                        className="queue-capacity__segment queue-capacity__segment--inflight"
+                                                        style={{ width: `${inFlightPercent}%` }}
+                                                    />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="queue-permissions">
+                                                    {queue.permissions.map((permission: string) => (
+                                                        <span key={permission} className="queue-permission">
+                                                            {toTitleCase(permission)}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="queue-actions">
+                                                    <Link
+                                                        className="button tertiary"
+                                                        to={`/queues/${encodeURIComponent(queue.queueName)}`}
+                                                    >
+                                                        Details
+                                                    </Link>
+                                                    <Link
+                                                        className="button tertiary"
+                                                        to={`/queues/${encodeURIComponent(queue.queueName)}/messages`}
+                                                    >
+                                                        Messages
+                                                    </Link>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </section>
